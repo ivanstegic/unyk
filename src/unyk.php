@@ -51,30 +51,59 @@ else {
 
 $dir = new RecursiveDirectoryIterator($current_path);
 $ite = new RecursiveIteratorIterator($dir);
-$files = new RegexIterator($ite, "/.*\.jpe?g/i", RegexIterator::GET_MATCH);
+$files = new RegexIterator($ite, "/(.*\.jpe?g)|(.*\.png)|(.*\.mov)|(.*\.mp4)/i", RegexIterator::GET_MATCH);
 $fileList = array();
+require_once('getid3/getid3.php');
+$getID3 = new getID3;
 
-$total = 0;
-$start = microtime();
-
+// Loop through the files and do stuff.
 foreach($files as $file) {
-	unset($file_path_name, $picture_exif, $picture_md5, $picture_fileinfo, $picture_ext, $picture_epoch, $picture_year, $picture_month, $picture_day, $picture_filename);
-	$file_path_name = $file[0];
-	$picture_exif = exif_read_data($file_path_name);
-	$picture_md5 = md5_file($file_path_name);
-	$picture_fileinfo = pathinfo($file_path_name);
-	$picture_ext = $picture_fileinfo['extension'];
-	$picture_epoch = isset($picture_exif['FileDateTime']) ? $picture_exif['FileDateTime'] : NULL;
-	$picture_year = date("Y", $picture_epoch);
-	$picture_month = date("m", $picture_epoch);
-	$picture_day = date("d", $picture_epoch);
-	$picture_filename = isset($picture_exif['FileName']) ? $picture_exif['FileName'] : NULL;
-	// Unique file check
-	$unique_file_path = "$unique_path/$picture_year/$picture_month/$picture_day";
-	$unique_file_name =	"$picture_md5.$picture_ext";
-	$duplicate_file_path = "$duplicates_path/$picture_year/$picture_month/$picture_day";
-	$duplicate_file_name = uniqid($picture_md5."_", TRUE)."_".$picture_filename;
+	// unset($file_path_name, $picture_exif, $picture_md5, $picture_fileinfo, $picture_ext, $picture_epoch, $picture_year, $picture_month, $picture_day, $picture_filename);
 
+	unset($file_path_name, $file_name, $file_md5, $file_epoch, $file_info, $file_ext, $file_year, $file_month, $file_day);
+	
+	$file_path_name = $file[0];
+	$file_name = basename($file_path_name);
+	$file_md5 = md5_file($file_path_name);
+	$file_epoch = filemtime($file_path_name);
+	$file_info = $getID3->analyze($file_path_name);
+	$file_ext = $file_info['fileformat'];
+
+	// Get better creation date time if we know the format of the metadata
+	switch ($file_ext) {
+		case 'jpg':
+			// jpg -> $file_info['jpg']['exif']['FILE']['FileDateTime']
+			$file_epoch = $file_info['jpg']['exif']['FILE']['FileDateTime'];
+			break;
+		
+		case 'mp4':
+			// mov,mp4 -> $file_info['quicktime']['moov']['subatoms'][0]['creation_time']
+			//	or
+			// mov,mp4 -> $file_info['quicktime']['moov']['subatoms'][0]['creation_time_unix']
+			$file_epoch = $file_info['quicktime']['moov']['subatoms'][0]['creation_time'];
+			if ($file_epoch < 0 || $file_epoch > time()) {
+				$file_epoch = $file_info['quicktime']['moov']['subatoms'][0]['creation_time_unix'];
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	// Extract human readable info please.
+	$file_year = date("Y", $file_epoch);
+	$file_month = date("m", $file_epoch);
+	$file_day = date("d", $file_epoch);
+
+	// Unique and duplicate file names
+	$unique_file_path = "$unique_path/$file_year/$file_month/$file_day";
+	$unique_file_name =	"$file_md5.$file_ext";
+	$duplicate_file_path = "$duplicates_path/$file_year/$file_month/$file_day";
+	$duplicate_file_name = uniqid($file_md5."_", TRUE)."_".$file_name;
+
+
+	// echo $file_info['filenamepath'].":".$file_info['fileformat'].":".$file_epoch.":".$file_year.":".$file_month.":".$file_day.":".$file_md5."\n";
+	
 	if (file_exists("$unique_file_path/$unique_file_name")) {
 		// Move to dupes location
 		if (!file_exists($duplicate_file_path)) {
@@ -90,9 +119,8 @@ foreach($files as $file) {
 		}
 		rename($file_path_name, "$unique_file_path/$unique_file_name");
 		echo "U $file_path_name --> $unique_file_path/$unique_file_name\n";
-
 	}
 
-}
 
-print microtime() - $start;
+
+}
