@@ -1,2 +1,2 @@
 # unyk
-Simple PHP JPG deduplicator
+Simple PHP deduplicator, supports JPG, PNG, MOV, MP4.
