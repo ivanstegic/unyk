@@ -162,7 +162,7 @@ foreach($files as $file) {
 			mkdir($duplicate_file_path, 0777, TRUE);
 		}
 		rename($file_path_name, "$duplicate_file_path/$duplicate_file_name");
-		file_put_contents($logfile, "Duplicate: $file_path_name --> $duplicate_file_path/$duplicate_file_name\n", FILE_APPEND);
+		file_put_contents($logfile, date('c') . " Duplicate: $file_path_name --> $duplicate_file_path/$duplicate_file_name\n", FILE_APPEND);
 		$num_dupe++;
 		echo "D";
 	}
@@ -175,7 +175,7 @@ foreach($files as $file) {
 		if ($file_imagehash) {
 			file_put_contents($hashfile, $file_imagehash.",'$unique_file_path/$unique_file_name'\n", FILE_APPEND);
 		}
-		file_put_contents($logfile, "Unique: $file_path_name --> $unique_file_path/$unique_file_name\n", FILE_APPEND);
+		file_put_contents($logfile, date('c') . " Unique: $file_path_name --> $unique_file_path/$unique_file_name\n", FILE_APPEND);
 		$num_uniq++;
 		echo "U";
 
@@ -197,6 +197,9 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 	foreach ($image_hashes_copy as $image_hash_copy => $image_filepath_copy) {
 		$image_filepath = trim($image_filepath, "'");
 		$image_filepath_copy = trim($image_filepath_copy, "'");
+		if (!file_exists($image_filepath) || !file_exists($image_filepath_copy)) {
+			break;
+		}
 		$distance = $hasher->compare($image_filepath, $image_filepath_copy);
 		$num_comp++;
 		if ($distance <= $hamming_distance) {
@@ -229,7 +232,7 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 				mkdir($small_file_path, 0777, TRUE);
 			}
 			rename(array_values($small_file)[0], "$small_file_path/$small_file_name");
-			file_put_contents($logfile, "Similar $distance: ".array_values($small_file)[0]." --> $small_file_path/$small_file_name\n", FILE_APPEND);
+			file_put_contents($logfile, date('c') . " Similar $distance: ".array_values($small_file)[0]." --> $small_file_path/$small_file_name\n", FILE_APPEND);
 			$num_sim++;
 			echo "S";
 			unset($image_hashes_copy[$sf]);
