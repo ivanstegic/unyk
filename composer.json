@@ -1,0 +1,6 @@
+{
+    "require": {
+        "jenssegers/imagehash": "^0.4.1",
+        "james-heinrich/getid3": "^1.9"
+    }
+}
