@@ -87,7 +87,7 @@ use Jenssegers\ImageHash\Implementations\DifferenceHash;
 use Jenssegers\ImageHash\ImageHash;
 $implementation = new DifferenceHash;
 $hasher = new ImageHash($implementation);
-$hashfile = $output_path . "/imagehashes_".uniqid().".csv";
+$hashfile = $output_path . "/imagehashes.csv";
 $logfile = $output_path . "/log.txt";
 $num_uniq = 0;
 $num_dupe = 0;
