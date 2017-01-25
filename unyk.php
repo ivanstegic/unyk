@@ -266,7 +266,7 @@ $image_hashes_copy = $image_hashes;
 echo "\n$ih image hashes extracted";
 
 // Arithmetic series formula for num of possible comparisons
-$combinations = $ih*(($ih+1)/2);
+$combinations = $ih*($ih-1)*0.5;
 $pctupdate = $combinations*0.002;
 
 echo "\n----";
@@ -288,6 +288,7 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 		$distance = $hasher->distance($image_hash, $image_hash_copy);
 		$num_comp++;
 		if ($distance <= $hamming_distance) {
+			unset($small_file, $big_file, $small_file_epoch, $small_file_year, $small_file_month, $small_file_day, $small_file_path, $aksf, $sf, $akbf, $bf, $small_file_name );
 			// Move the smaller file
 			$filesize_image = filesize($image_filepath);
 			$filesize_image_copy = filesize($image_filepath_copy);
@@ -310,7 +311,7 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 			$sf = array_shift($aksf);
 			$akbf = array_keys($big_file);
 			$bf = array_shift($akbf);
-			$small_file_name = $sf."_similar_to_".$bf.".jpg";
+			$small_file_name = $sf."_similar_to_".$bf."_".uniqid().".jpg";
 
 			// Move to similar location
 			if (!file_exists($small_file_path)) {
@@ -320,8 +321,6 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 			file_put_contents($logfile, date('c') . " Similar $distance: ".array_values($small_file)[0]." --> $small_file_path/$small_file_name\n", FILE_APPEND);
 			$num_sim++;
 			echo "S";
-			unset($image_hashes_copy[$sf]);
-			continue;
 
 		}
 
