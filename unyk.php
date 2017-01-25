@@ -228,6 +228,8 @@ foreach ($jpgs as $jpg) {
 	$fj = $jpg[0];
 	$pi = pathinfo($fj);
 
+	file_put_contents($logfile, date('c') . " Prepping $fj\n", FILE_APPEND);
+
 	if (substr($pi['filename'], 0, 3) == 'im_') {
 		$file_imagehash = substr($pi['filename'], 3);
 		$image_hashes[$file_imagehash] = $fj;
@@ -243,7 +245,7 @@ foreach ($jpgs as $jpg) {
 			echo "0";
 			continue;
 		}
-		if ($j_width > 9999) {
+		if ($j_width > 9000) {
 			echo "W";
 			continue;
 		}
