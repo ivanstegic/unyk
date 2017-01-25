@@ -158,7 +158,7 @@ foreach($files as $file) {
 
 	// Unique and duplicate file names
 	$unique_file_path = "$unique_path/$file_year/$file_month/$file_day";
-	$unique_file_name =	"$file_newname.$file_ext";
+	$unique_file_name = "$file_newname.$file_ext";
 	$duplicate_file_path = "$duplicate_path/$file_year/$file_month/$file_day";
 	$duplicate_file_name = uniqid($file_newname."_", TRUE)."_".$file_name;
 
@@ -220,6 +220,7 @@ echo "\nComputing image hashes...\n";
 // Arrays
 $image_hashes = array();
 $image_hashes_copy = array();
+$ih=0;
 
 // Compute image hashes
 foreach ($jpgs as $jpg) {
@@ -227,6 +228,7 @@ foreach ($jpgs as $jpg) {
 	unset($file_imagehash, $fj);
 	$fj = $jpg[0];
 	$pi = pathinfo($fj);
+	$ih++;
 
 	file_put_contents($logfile, date('c') . " Prepping $fj\n", FILE_APPEND);
 
@@ -261,19 +263,29 @@ foreach ($jpgs as $jpg) {
 }
 $image_hashes_copy = $image_hashes;
 
+echo "\n$ih image hashes extracted";
+
+// Arithmetic series formula for num of possible comparisons
+$combinations = $ih*(($ih+1)/2);
+$pctupdate = $combinations*0.002;
+
 echo "\n----";
-echo "\nComparing similarity...\n";
+echo "\nComparing $combinations combinations for similarity...\n";
+
+$i=0;
 
 // Loops through and compares similarity
 foreach ($image_hashes as $image_hash => $image_filepath) {
 	unset($image_hashes_copy[$image_hash]);
 	foreach ($image_hashes_copy as $image_hash_copy => $image_filepath_copy) {
+		$i++;
 		// $image_filepath = trim($image_filepath, "'");
 		// $image_filepath_copy = trim($image_filepath_copy, "'");
 		if (!file_exists($image_filepath) || !file_exists($image_filepath_copy)) {
 			continue;
 		}
-		$distance = $hasher->compare($image_filepath, $image_filepath_copy);
+		//$distance = $hasher->compare($image_filepath, $image_filepath_copy);
+		$distance = $hasher->distance($image_hash, $image_hash_copy);
 		$num_comp++;
 		if ($distance <= $hamming_distance) {
 			// Move the smaller file
@@ -312,10 +324,12 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 			continue;
 
 		}
-		else {
-			echo ".";
-			file_put_contents($logfile, date('c') . " Different $distance: $image_filepath & $image_filepath_copy\n", FILE_APPEND);			
+
+		if ($i % $pctupdate ==0) {
+			$pct = round(100*($i / $combinations), 1);
+			echo "\n$pct% complete ";
 		}
+		//file_put_contents($logfile, date('c') . " Different $distance: $image_filepath & $image_filepath_copy\n", FILE_APPEND);			
 	}
 }
 

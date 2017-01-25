@@ -17,3 +17,6 @@ PHP 5.5 or higher and composer.
 1. Clone the repo
 2. Run `composer install` in the root of the repo
 3. Run `php unyk.php input/ output/` in the root where `input` is the path to your source of media, and `output` is an existing folder where you want the media to be sorted into.
+
+## Thanks
+Uses ImageHash, thank you! https://github.com/jenssegers/imagehash
