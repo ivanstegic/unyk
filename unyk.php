@@ -263,14 +263,14 @@ foreach ($jpgs as $jpg) {
 }
 $image_hashes_copy = $image_hashes;
 
-echo "\n$ih image hashes extracted";
+echo "\n".number_format($ih)." image hashes extracted";
 
 // Arithmetic series formula for num of possible comparisons
 $combinations = $ih*($ih-1)*0.5;
 $pctupdate = $combinations*0.002;
 
 echo "\n----";
-echo "\nComparing $combinations combinations for similarity...\n";
+echo "\nComparing ".number_format($combinations)." combinations for similarity...\n";
 
 $i=0;
 
