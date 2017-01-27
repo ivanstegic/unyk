@@ -1,6 +1,7 @@
 <?php
 
 date_default_timezone_set('UTC');
+openlog("unyk", LOG_PID, LOG_SYSLOG);
 
 // Command line use only please.
 if (php_sapi_name() != "cli") {
@@ -79,6 +80,23 @@ if (!file_exists($similar_path)) {
 // Autoloader
 require __DIR__ . '/vendor/autoload.php';
 
+// Image comparison
+
+// use Jenssegers\ImageHash\Implementations\DifferenceHash;
+// use Jenssegers\ImageHash\ImageHash;
+// $implementation = new DifferenceHash;
+// $hasher = new ImageHash($implementation);
+
+// use Jenssegers\ImageHash\Implementations\AverageHash;
+// use Jenssegers\ImageHash\ImageHash;
+// $implementation = new AverageHash;
+// $hasher = new ImageHash($implementation);
+
+use Jenssegers\ImageHash\Implementations\PerceptualHash;
+use Jenssegers\ImageHash\ImageHash;
+$implementation = new PerceptualHash;
+$hasher = new ImageHash($implementation);
+
 // Some variables
 $getID3 = new getID3;
 $num_uniq = 0;
@@ -97,13 +115,13 @@ $files = new RegexIterator($ite, "/(.*\.jpe?g)|(.*\.png)|(.*\.mov)|(.*\.mp4)/i",
 // Feedback bbzzzz
 echo "----\n";
 echo "Looking for copies...\n";
-file_put_contents($logfile, date('c') . " Starting...\n", FILE_APPEND);
+syslog(LOG_ERR, "Starting unyk...");
 
 
 // Loop through the media files and do stuff.
 foreach($files as $file) {
 
-	unset($file_path_name, $file_name, $file_newname, $file_epoch, $file_info, $file_ext, $file_year, $file_month, $file_day);
+	unset($file_path_name, $file_name, $file_newname, $file_epoch, $file_info, $file_ext, $file_width, $file_imagehash, $file_year, $file_month, $file_day);
 	
 	$file_path_name = $file[0];
 	$file_name = basename($file_path_name);
@@ -111,25 +129,27 @@ foreach($files as $file) {
 	$file_epoch = filemtime($file_path_name);
 	$file_info = $getID3->analyze($file_path_name);
 	$file_ext = $file_info['fileformat'];
-
+	$file_imagehash = NULL;
+	//echo $file_path_name;
 
 	// Get better creation date time if we know the format of the metadata
 	switch ($file_ext) {
 		case 'jpg':
 			// jpg -> $file_info['jpg']['exif']['FILE']['FileDateTime']
-			// if (isset($file_info['jpg']['exif']['COMPUTED']['Width'])) {
-			// 	$file_width = $file_info['jpg']['exif']['COMPUTED']['Width'];
-			// }
-			// else {
-			// 	echo "Skip no width: $file_name\n";
-			// 	continue;
-			// }
-			// if ($file_width>9999) {
-			// 	echo "Skip width $file_width: $file_name\n";
+			$file_width = NULL;
+			if (isset($file_info['jpg']['exif']['COMPUTED']['Width'])) {
+				$file_width = $file_info['jpg']['exif']['COMPUTED']['Width'];
+			}
+			// if ($file_width>9999 || $file_width==0) {
+			// 	echo "\nSkip width $file_width: $file_path_name\n";
 			// 	continue;
 			// }
 			if (isset($file_info['jpg']['exif']['FILE']['FileDateTime'])) {
 				$file_epoch = $file_info['jpg']['exif']['FILE']['FileDateTime'];
+			}
+			$file_imagehash = $hasher->hash($file_path_name);				
+			if ($file_imagehash) {
+				$file_newname = "im_$file_imagehash";
 			}
 			break;
 		
@@ -171,7 +191,7 @@ foreach($files as $file) {
 			mkdir($duplicate_file_path, 0777, TRUE);
 		}
 		rename($file_path_name, "$duplicate_file_path/$duplicate_file_name");
-		file_put_contents($logfile, date('c') . " Duplicate: $file_path_name --> $duplicate_file_path/$duplicate_file_name\n", FILE_APPEND);
+		syslog(LOG_ERR, "Duplicate: $file_path_name --> $duplicate_file_path/$duplicate_file_name");
 		$num_dupe++;
 		echo "D";
 	}
@@ -181,7 +201,7 @@ foreach($files as $file) {
 			mkdir($unique_file_path, 0777, TRUE);
 		}
 		rename($file_path_name, "$unique_file_path/$unique_file_name");
-		file_put_contents($logfile, date('c') . " Unique: $file_path_name --> $unique_file_path/$unique_file_name\n", FILE_APPEND);
+		syslog(LOG_ERR, "Unique: $file_path_name --> $unique_file_path/$unique_file_name");
 		$num_uniq++;
 		echo "U";
 
@@ -189,24 +209,9 @@ foreach($files as $file) {
 
 }
 
-// Image comparison
-
-// use Jenssegers\ImageHash\Implementations\DifferenceHash;
-// use Jenssegers\ImageHash\ImageHash;
-// $implementation = new DifferenceHash;
-// $hasher = new ImageHash($implementation);
-
-// use Jenssegers\ImageHash\Implementations\AverageHash;
-// use Jenssegers\ImageHash\ImageHash;
-// $implementation = new AverageHash;
-// $hasher = new ImageHash($implementation);
-
-use Jenssegers\ImageHash\Implementations\PerceptualHash;
-use Jenssegers\ImageHash\ImageHash;
-$implementation = new PerceptualHash;
-$hasher = new ImageHash($implementation);
 
 
+// How similar do they have to be?
 $hamming_distance = 5;
 
 // JPGs in unique location
@@ -230,12 +235,12 @@ foreach ($jpgs as $jpg) {
 	$pi = pathinfo($fj);
 	$ih++;
 
-	file_put_contents($logfile, date('c') . " Prepping $fj\n", FILE_APPEND);
+	syslog(LOG_ERR, "Prepping $fj");
 
 	if (substr($pi['filename'], 0, 3) == 'im_') {
 		$file_imagehash = substr($pi['filename'], 3);
 		$image_hashes[$file_imagehash] = $fj;
-		file_put_contents($logfile, date('c') . " $file_imagehash for $fj\n", FILE_APPEND);
+		syslog(LOG_ERR, "$file_imagehash for $fj");
 	}
 	else {
 
@@ -243,20 +248,20 @@ foreach ($jpgs as $jpg) {
 		if (isset($fj_info['jpg']['exif']['COMPUTED']['Width'])) {
 			$j_width = $fj_info['jpg']['exif']['COMPUTED']['Width'];
 		}
-		else {
-			echo "0";
-			continue;
-		}
-		if ($j_width > 9000) {
-			echo "W";
-			continue;
-		}
+		// else {
+		// 	echo "0";
+		// 	continue;
+		// }
+		// if ($j_width > 9000) {
+		// 	echo "W";
+		// 	continue;
+		// }
 		$file_imagehash = $hasher->hash($fj);
 		$fr = $pi['dirname'].'/im_'.$file_imagehash.'.jpg';
 		rename($fj, $fr);
-		file_put_contents($logfile, date('c') . " Renamed $fj --> $fr\n", FILE_APPEND);
+		syslog(LOG_ERR, "Renamed $fj --> $fr");
 		$image_hashes[$file_imagehash] = $fr;
-		file_put_contents($logfile, date('c') . " $file_imagehash for $fr\n", FILE_APPEND);
+		syslog(LOG_ERR, "$file_imagehash for $fr");
 	}
 	echo ".";
 
@@ -318,24 +323,29 @@ foreach ($image_hashes as $image_hash => $image_filepath) {
 				mkdir($small_file_path, 0777, TRUE);
 			}
 			rename(array_values($small_file)[0], "$small_file_path/$small_file_name");
-			file_put_contents($logfile, date('c') . " Similar $distance: ".array_values($small_file)[0]." --> $small_file_path/$small_file_name\n", FILE_APPEND);
+			syslog(LOG_ERR, "Similar $distance: ".array_values($small_file)[0]." --> $small_file_path/$small_file_name");
 			$num_sim++;
 			echo "S";
 
 		}
 
+		// @TODO
+		// Compute estimated time remaining here
 		if ($i % $pctupdate ==0) {
 			$pct = round(100*($i / $combinations), 1);
 			echo "\n$pct% complete ";
 		}
-		//file_put_contents($logfile, date('c') . " Different $distance: $image_filepath & $image_filepath_copy\n", FILE_APPEND);			
 	}
 }
 
+// @TODO
+// Compare existence of the same imagehash in different parts of the unique directory
+
+
 $num_tot = $num_uniq + $num_dupe;
 $num_ops = $num_tot + $num_sim;
-$results = "\n----\nResults:\n $num_uniq uniques\n $num_dupe duplicates\n $num_tot total files\n $num_sim visually similar in $num_comp comparisons\n $num_ops file operations total\n----\n";
-file_put_contents($logfile, $results, FILE_APPEND);
+$results = "Results: $num_uniq uniques, $num_dupe duplicates, $num_tot total files, $num_sim visually similar in $num_comp comparisons, $num_ops file operations total.";
+syslog(LOG_ERR, "$results");
 echo $results;
 echo "Done.\n";
 
